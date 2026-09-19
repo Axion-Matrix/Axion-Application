@@ -57,7 +57,7 @@ jobs:
 
       - name: Deploy Axion UI
         run: |
-          kubectl apply -f axion-ui/manifests/
+          kubectl apply -f axion-data-simulator/manifests/
 
       - name: Check Deployment
         run: |
