@@ -9,11 +9,11 @@ on:
 #     - main
 
 env:
-  IMAGE_NAME: axion-telemetry-service-image
+  IMAGE_NAME: simulator-image
   ACR_NAME: brijendra
   ACR_LOGIN_SERVER: brijendra.azurecr.io
   # App / Dockerfile folder path relative to the repo root
-  APP_PATH: axion-telemetry-query-service
+  APP_PATH: axion-data-simulator
 
 jobs:
 
