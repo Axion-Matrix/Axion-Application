@@ -9,7 +9,7 @@ on:
 #     - main
 
 env:
-  IMAGE_NAME: axion-app
+  IMAGE_NAME: axion-ingestion-image
   ACR_NAME: brijendra
   ACR_LOGIN_SERVER: brijendra.azurecr.io
   # App / Dockerfile folder path relative to the repo root
