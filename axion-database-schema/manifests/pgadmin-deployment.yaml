@@ -25,26 +25,6 @@ spec:
 
           env:
             - name: PGADMIN_DEFAULT_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  name: pgadmin-secret
-                  key: Axion-Username
-
+              value: "brijendrayadav2009@gmail.com"
             - name: PGADMIN_DEFAULT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: pgadmin-secret
-                  key: Axion-Password
-
-          volumeMounts:
-            - name: secrets-store
-              mountPath: /mnt/secrets
-              readOnly: true
-
-      volumes:
-        - name: secrets-store
-          csi:
-            driver: secrets-store.csi.k8s.io
-            readOnly: true
-            volumeAttributes:
-              secretProviderClass: axion-secret
+              value: "Brijendra@123"
