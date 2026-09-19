@@ -1,112 +1,78 @@
-name: Build and Push Docker Image
+name: Deploy Axion UI to Kubernetes
 
 on:
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
 
-# Optional:
-# push:
-#   branches:
-#     - main
-
-env:
-  IMAGE_NAME: simulator-image
-  ACR_NAME: brijendra
-  ACR_LOGIN_SERVER: brijendra.azurecr.io
-  # App / Dockerfile folder path relative to the repo root
-  APP_PATH: axion-data-simulator
-
 jobs:
-
-  # ============================================================
-  # Stage 1: Build Docker Image
-  # ============================================================
-  build:
-    name: Build Docker Image
+  deploy:
+    name: Deploy to Axion-Cluster
     runs-on: ubuntu-latest
 
     steps:
 
+      # 1. Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Check Docker
-        run: |
-          docker --version
-
-      - name: Build Docker Image
-        # Working directory set to axion-ui subfolder
-        working-directory: ${{ env.APP_PATH }}
-        run: |
-          docker build \
-            -t ${{ env.IMAGE_NAME }}:${{ github.run_number }} \
-            -f Dockerfile \
-            .
-
-      - name: Save Docker Image
-        run: |
-          mkdir -p "${{ runner.temp }}/docker-image"
-
-          docker save \
-            "${{ env.IMAGE_NAME }}:${{ github.run_number }}" \
-            -o "${{ runner.temp }}/docker-image/axion-app.tar"
-
-      - name: Upload Docker Image Artifact
-        uses: actions/upload-artifact@v4
+      # 2. Install kubectl
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
         with:
-          name: docker-image
-          path: ${{ runner.temp }}/docker-image/axion-app.tar
-          retention-days: 30
+          version: latest
 
-
-  # ============================================================
-  # Stage 2: Push Image to Azure Container Registry
-  # ============================================================
-  push-acr:
-    name: Push Docker Image to ACR
-    needs: build
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-
-      - name: Download Docker Image Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: ${{ runner.temp }}/docker-image
-
-      - name: Load Docker Image
+      # 3. Create kubeconfig directory
+      - name: Create Kubernetes Config Directory
         run: |
-          docker load \
-            -i "${{ runner.temp }}/docker-image/axion-app.tar"
+          mkdir -p ~/.kube
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Login to Azure Container Registry
+      # 4. Configure Kubernetes connection
+      - name: Configure Kubernetes
         run: |
-          az acr login --name "${{ env.ACR_NAME }}"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
 
-      - name: Tag Docker Image
+      # 5. Verify Kubernetes connection
+      - name: Verify Kubernetes Cluster
         run: |
-          docker tag \
-            "${{ env.IMAGE_NAME }}:${{ github.run_number }}" \
-            "${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"
+          echo "Current Kubernetes Context:"
+          kubectl config current-context
 
-      - name: Push Docker Image to ACR
-        run: |
-          docker push \
-            "${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"
+          echo "Kubernetes Cluster:"
+          kubectl cluster-info
 
-      - name: Show Image
+          echo "Cluster Nodes:"
+          kubectl get nodes
+
+      # 6. Select Axion-Cluster context
+      - name: Select Axion-Cluster
         run: |
-          echo "Image pushed successfully:"
-          echo "${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"
+          kubectl config use-context Axion-Cluster
+
+      # 7. Verify selected cluster
+      - name: Verify Axion-Cluster
+        run: |
+          echo "Connected Cluster:"
+          kubectl config current-context
+
+          kubectl get nodes
+
+      # 8. Apply Axion UI Kubernetes manifests
+      - name: Deploy Axion UI
+        run: |
+          kubectl apply -f axion-ui/manifests/
+
+      # 9. Check deployment
+      - name: Check Deployment Status
+        run: |
+          kubectl get deployments
+          kubectl get pods
+          kubectl get services
+
+      # 10. Wait for rollout
+      - name: Verify Rollout
+        run: |
+          kubectl rollout status deployment/axion-ui --timeout=180s
