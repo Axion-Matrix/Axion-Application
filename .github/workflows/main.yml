@@ -1,0 +1,112 @@
+name: Build and Push Docker Image
+
+on:
+# workflow_dispatch:
+  
+
+# Optional:
+ push:
+  branches:
+    - main
+  paths:
+    - "axion-ui/**"
+
+env:
+  IMAGE_NAME: axion-app
+  ACR_NAME: brijendra
+  ACR_LOGIN_SERVER: brijendra.azurecr.io
+
+jobs:
+
+  # ============================================================
+  # Stage 1: Build Docker Image
+  # ============================================================
+  build:
+    name: Build Docker Image
+    runs-on:
+      - ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check Docker
+        run: |
+          docker --version
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_NAME }}:${{ github.run_number }} \
+            .
+
+      - name: Save Docker Image
+        run: |
+          mkdir -p "${{ runner.temp }}/docker-image"
+
+          docker save \
+            "${{ env.IMAGE_NAME }}:${{ github.run_number }}" \
+            -o "${{ runner.temp }}/docker-image/axion-app.tar"
+
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: ${{ runner.temp }}/docker-image/axion-app.tar
+          retention-days: 30
+
+
+  # ============================================================
+  # Stage 2: Push Image to Azure Container Registry
+  # ============================================================
+  push-acr:
+    name: Push Docker Image to ACR
+    needs: build
+
+    runs-on:
+      - ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+
+      - name: Download Docker Image Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: ${{ runner.temp }}/docker-image
+
+      - name: Load Docker Image
+        run: |
+          docker load \
+            -i "${{ runner.temp }}/docker-image/axion-app.tar"
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name "${{ env.ACR_NAME }}"
+
+      - name: Tag Docker Image
+        run: |
+          docker tag \
+            "${{ env.IMAGE_NAME }}:${{ github.run_number }}" \
+            "${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"
+
+      - name: Push Docker Image to ACR
+        run: |
+          docker push \
+            "${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"
+
+      - name: Show Image
+        run: |
+          echo "Image pushed successfully:"
+          echo "${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.run_number }}"
