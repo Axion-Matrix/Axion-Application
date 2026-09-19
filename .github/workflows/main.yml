@@ -9,11 +9,11 @@ on:
 #     - main
 
 env:
-  IMAGE_NAME: axion-ingestion-image
+  IMAGE_NAME: axion-telemetry-service-image
   ACR_NAME: brijendra
   ACR_LOGIN_SERVER: brijendra.azurecr.io
   # App / Dockerfile folder path relative to the repo root
-  APP_PATH: axion-ingestion-service
+  APP_PATH: axion-telemetry-query-service
 
 jobs:
 
