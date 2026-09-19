@@ -13,7 +13,7 @@ env:
   ACR_NAME: brijendra
   ACR_LOGIN_SERVER: brijendra.azurecr.io
   # App / Dockerfile folder path relative to the repo root
-  APP_PATH: axion-ui
+  APP_PATH: axion-ingestion-service
 
 jobs:
 
