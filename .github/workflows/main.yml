@@ -1,20 +1,19 @@
 name: Build and Push Docker Image
 
 on:
-# workflow_dispatch:
-  
+  workflow_dispatch:
 
 # Optional:
- push:
-  branches:
-    - main
-  paths:
-    - "axion-ui/**"
+# push:
+#   branches:
+#     - main
 
 env:
   IMAGE_NAME: axion-app
   ACR_NAME: brijendra
   ACR_LOGIN_SERVER: brijendra.azurecr.io
+  # App / Dockerfile folder path relative to the repo root
+  APP_PATH: axion-ui
 
 jobs:
 
@@ -23,8 +22,7 @@ jobs:
   # ============================================================
   build:
     name: Build Docker Image
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubuntu-latest
 
     steps:
 
@@ -36,9 +34,12 @@ jobs:
           docker --version
 
       - name: Build Docker Image
+        # Working directory set to axion-ui subfolder
+        working-directory: ${{ env.APP_PATH }}
         run: |
           docker build \
             -t ${{ env.IMAGE_NAME }}:${{ github.run_number }} \
+            -f Dockerfile \
             .
 
       - name: Save Docker Image
@@ -64,8 +65,7 @@ jobs:
     name: Push Docker Image to ACR
     needs: build
 
-    runs-on:
-      - ubuntu-latest
+    runs-on: ubuntu-latest
 
     permissions:
       id-token: write
