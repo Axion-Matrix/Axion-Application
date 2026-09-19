@@ -1,4 +1,4 @@
-name: Deploy Axion UI to Kubernetes
+name: Deploy Axion UI
 
 on:
   push:
@@ -24,19 +24,30 @@ jobs:
         with:
           version: latest
 
-      # 3. Create kubeconfig directory
-      - name: Create Kubernetes Config Directory
-        run: |
-          mkdir -p ~/.kube
-
-      # 4. Configure Kubernetes connection
+      # 3. Create kubeconfig
       - name: Configure Kubernetes
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > ~/.kube/config
-          chmod 600 ~/.kube/config
+          mkdir -p "$HOME/.kube"
 
-      # 5. Verify Kubernetes connection
-      - name: Verify Kubernetes Cluster
+          echo "$KUBE_CONFIG" | base64 --decode > "$HOME/.kube/config"
+
+          chmod 600 "$HOME/.kube/config"
+
+      # 4. Check available Kubernetes contexts
+      - name: Check Kubernetes Contexts
+        run: |
+          echo "Available Kubernetes contexts:"
+          kubectl config get-contexts
+
+      # 5. Select Axion-Cluster
+      - name: Select Axion-Cluster
+        run: |
+          kubectl config use-context Axion-Cluster
+
+      # 6. Verify Kubernetes connection
+      - name: Verify Kubernetes Connection
         run: |
           echo "Current Kubernetes Context:"
           kubectl config current-context
@@ -47,32 +58,19 @@ jobs:
           echo "Cluster Nodes:"
           kubectl get nodes
 
-      # 6. Select Axion-Cluster context
-      - name: Select Axion-Cluster
-        run: |
-          kubectl config use-context Axion-Cluster
-
-      # 7. Verify selected cluster
-      - name: Verify Axion-Cluster
-        run: |
-          echo "Connected Cluster:"
-          kubectl config current-context
-
-          kubectl get nodes
-
-      # 8. Apply Axion UI Kubernetes manifests
+      # 7. Deploy manifests
       - name: Deploy Axion UI
         run: |
           kubectl apply -f axion-ui/manifests/
 
-      # 9. Check deployment
-      - name: Check Deployment Status
+      # 8. Check resources
+      - name: Check Deployment
         run: |
           kubectl get deployments
           kubectl get pods
           kubectl get services
 
-      # 10. Wait for rollout
+      # 9. Wait for rollout
       - name: Verify Rollout
         run: |
           kubectl rollout status deployment/axion-ui --timeout=180s
